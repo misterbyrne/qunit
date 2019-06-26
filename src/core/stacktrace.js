@@ -5,6 +5,20 @@ var fileName = ( sourceFromStacktrace( 0 ) || "" )
 	.replace( /.+\//, "" );
 
 export function extractStacktrace( e, offset ) {
+	if ( !e ) {
+		return;
+	}
+
+	// Support: Safari <=7 only, IE <=10 - 11 only
+	// Not all browsers generate the `stack` property for `new Error()`, see also #636
+	if ( !e.stack ) {
+		try {
+			throw e;
+		} catch ( err ) {
+			e = err;
+		}
+	}
+
 	offset = offset === undefined ? 4 : offset;
 
 	var stack, include, i;
@@ -31,17 +45,5 @@ export function extractStacktrace( e, offset ) {
 }
 
 export function sourceFromStacktrace( offset ) {
-	var error = new Error();
-
-	// Support: Safari <=7 only, IE <=10 - 11 only
-	// Not all browsers generate the `stack` property for `new Error()`, see also #636
-	if ( !error.stack ) {
-		try {
-			throw error;
-		} catch ( err ) {
-			error = err;
-		}
-	}
-
-	return extractStacktrace( error, offset );
+	return extractStacktrace( new Error(), offset );
 }

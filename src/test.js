@@ -34,9 +34,14 @@ export default function Test( settings ) {
 	this.assertions = [];
 	this.semaphore = 0;
 	this.module = config.currentModule;
-	this.stack = sourceFromStacktrace( 3 );
 	this.steps = [];
 	this.timeout = undefined;
+
+	// evaluating error.stack can be expensive, so we should defer this if possible
+	var errorForStack = new Error();
+	this.getStack = function() {
+		return extractStacktrace( errorForStack, 2 );
+	};
 
 	// If a module is skipped, all its tests and the tests of the child suites
 	// should be treated as skipped even if they are defined as `only` or `todo`.
@@ -164,7 +169,7 @@ Test.prototype = {
 			runTest( this );
 		} catch ( e ) {
 			this.pushFailure( "Died on test #" + ( this.assertions.length + 1 ) + " " +
-				this.stack + ": " + ( e.message || e ), extractStacktrace( e, 0 ) );
+				this.getStack() + ": " + ( e.message || e ), extractStacktrace( e, 0 ) );
 
 			// Else next test will carry the responsibility
 			saveGlobal();
@@ -267,18 +272,18 @@ Test.prototype = {
 		if ( this.steps.length ) {
 			const stepsList = this.steps.join( ", " );
 			this.pushFailure( "Expected assert.verifySteps() to be called before end of test " +
-				`after using assert.step(). Unverified steps: ${stepsList}`, this.stack );
+				`after using assert.step(). Unverified steps: ${stepsList}`, this.getStack() );
 		}
 
 		if ( config.requireExpects && this.expected === null ) {
 			this.pushFailure( "Expected number of assertions to be defined, but expect() was " +
-				"not called.", this.stack );
+				"not called.", this.getStack() );
 		} else if ( this.expected !== null && this.expected !== this.assertions.length ) {
 			this.pushFailure( "Expected " + this.expected + " assertions, but " +
-				this.assertions.length + " were run", this.stack );
+				this.assertions.length + " were run", this.getStack() );
 		} else if ( this.expected === null && !this.assertions.length ) {
 			this.pushFailure( "Expected at least one assertion, but none were run - call " +
-				"expect(0) to accept zero assertions.", this.stack );
+				"expect(0) to accept zero assertions.", this.getStack() );
 		}
 
 		var i,
@@ -334,7 +339,7 @@ Test.prototype = {
 			testId: this.testId,
 
 			// Source of Test
-			source: this.stack
+			source: this.getStack()
 		} ).then( function() {
 			if ( module.testsRun === numberOfTests( module ) ) {
 				const completedModules = [ module ];
